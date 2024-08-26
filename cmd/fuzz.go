@@ -4,6 +4,7 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -21,21 +22,8 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("fuzz called")
+		fuzzGenerate(cmd, args)
 	},
-}
-
-func fuzzCmd(cmd *cobra.Command, args []string) {
-	// url, _ := cmd.Flags().GetString("Url")
-	routes, _ := cmd.Flags().GetString("Routes")
-
-	content, err := os.ReadFile(routes)
-
-	if err != nil {
-		fmt.Printf("There is a problem with your file path")
-	}
-	fmt.Printf("Content of %s:\n%s\n", routes, string(content))
-
 }
 
 func init() {
@@ -43,13 +31,23 @@ func init() {
 
 	fuzzCmd.Flags().StringP("filepath", "f", "", "Give a path to the routes file")
 
-	// Here you will define your flags and configuration settings.
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// fuzzCmd.PersistentFlags().String("foo", "", "A help for foo")
+func fuzzGenerate(cmd *cobra.Command, args []string) {
+	// url, _ := cmd.Flags().GetString("Url")
+	filepath, _ := cmd.Flags().GetString("filepath")
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// fuzzCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	file, err := os.Open(filepath)
+
+	if err != nil {
+		fmt.Println("there was a problem with your file")
+	}
+	defer file.Close()
+	arrFile := []string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		arrFile = append(arrFile, scanner.Text())
+	}
+	fmt.Print(arrFile)
+
 }
