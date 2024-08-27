@@ -6,7 +6,9 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"net/http"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 )
@@ -29,25 +31,53 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(fuzzCmd)
 
-	fuzzCmd.Flags().StringP("filepath", "f", "", "Give a path to the routes file")
+	fuzzCmd.Flags().StringP("filepath", "f", "", "Provide a path to the paths file")
+	fuzzCmd.Flags().StringP("Url", "u", "", "Provide the Domian that you want to fuzz")
 
 }
 
+type Response struct {
+	url    string
+	status int
+}
+
 func fuzzGenerate(cmd *cobra.Command, args []string) {
-	// url, _ := cmd.Flags().GetString("Url")
+	domain, _ := cmd.Flags().GetString("Url")
 	filepath, _ := cmd.Flags().GetString("filepath")
 
 	file, err := os.Open(filepath)
 
 	if err != nil {
-		fmt.Println("there was a problem with your file")
+		fmt.Println("There was a problem with your file path")
 	}
 	defer file.Close()
-	arrFile := []string{}
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		arrFile = append(arrFile, scanner.Text())
+	responseCh := make(chan Response)
+	maxConcurentRequest := 5
+	sem := make(chan struct{}, maxConcurentRequest)
+	var wg sync.WaitGroup
+	go func() {
+		defer close(responseCh)
+
+		for scanner.Scan() {
+			sem <- struct{}{}
+			wg.Add(1)
+			fullUrl := domain + scanner.Text()
+			go func(fullUrl string) {
+				defer func() { <-sem }()
+				defer wg.Done()
+				res, err := http.Get(fullUrl)
+				if err != nil {
+					return
+				}
+				responseCh <- Response{url: fullUrl, status: res.StatusCode}
+			}(fullUrl)
+		}
+		wg.Wait()
+	}()
+
+	for response := range responseCh {
+		fmt.Printf("This URL %s responded with the status of: %d\n", response.url, response.status)
 	}
-	fmt.Print(arrFile)
 
 }
