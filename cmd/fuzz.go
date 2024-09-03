@@ -1,5 +1,5 @@
 /*
-Copyright © 2024 NAME HERE <EMAIL ADDRESS>
+Copyright © 2024 NAME HERE <lotfi.kaddari.lp2@gmail.com>
 */
 package cmd
 
@@ -13,16 +13,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// fuzzCmd represents the fuzz command
 var fuzzCmd = &cobra.Command{
 	Use:   "fuzz",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "the fuzz command helps you to fuzz url",
+	Long: `the fuzz command sends multiple requests to a url just by providing a domain and a file that containe the routes that you want to fuzz 
+	. For example:
+	fuzz -u https://example.com -f ~/list.txt 
+	the list must contain the routes like this : /home , /users ...
+	each route should be in one line `,
 	Run: func(cmd *cobra.Command, args []string) {
 		fuzzGenerate(cmd, args)
 	},
@@ -30,10 +28,9 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(fuzzCmd)
-
-	fuzzCmd.Flags().StringP("filepath", "f", "", "Provide a path to the paths file")
+	fuzzCmd.Flags().StringP("Filepath", "f", "", "Provide a path to the routes file")
 	fuzzCmd.Flags().StringP("Url", "u", "", "Provide the Domian that you want to fuzz")
-
+	fuzzCmd.Flags().StringP("Method", "m", "", "Provide the method (Get , Post , Patch)")
 }
 
 type Response struct {
@@ -43,7 +40,8 @@ type Response struct {
 
 func fuzzGenerate(cmd *cobra.Command, args []string) {
 	domain, _ := cmd.Flags().GetString("Url")
-	filepath, _ := cmd.Flags().GetString("filepath")
+	filepath, _ := cmd.Flags().GetString("Filepath")
+	method, _ := cmd.Flags().GetString("Method")
 
 	file, err := os.Open(filepath)
 
@@ -66,7 +64,14 @@ func fuzzGenerate(cmd *cobra.Command, args []string) {
 			go func(fullUrl string) {
 				defer func() { <-sem }()
 				defer wg.Done()
-				res, err := http.Get(fullUrl)
+				var res *http.Response
+				var err error
+				if method == "Get" {
+					res, err = http.Get(fullUrl)
+				}
+				if method == "Post" {
+					res, err = http.Post(fullUrl, "application/x-www-form-urlencoded", nil)
+				}
 				if err != nil {
 					return
 				}
